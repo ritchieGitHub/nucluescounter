@@ -142,7 +142,7 @@ public class NucleusCounter implements PlugIn {
 
 			for (Roi roi : RoiManager.getRoiManager().getRoisAsArray()) {
 				double[] center = roi.getContourCentroid();
-				CellCounter.add((int) center[0], (int) center[1], currentSlice);
+				CellCounter.add((int) center[0], (int) center[1], currentSlice, roi);
 			}
 			RoiManager.getRoiManager().reset();
 			imp2.changes = false;
@@ -171,6 +171,7 @@ public class NucleusCounter implements PlugIn {
 		List<ShapeRoi> rois = new ArrayList<>();
 		// RoiManager.getRoiManager().setVisible(true);
 
+		RoiManager roiManager = RoiManager.getInstance();
 		for (int index = zMin; index <= zMax; index++) {
 			img.setZ(index);
 			BufferedImage bufferedImage = img.getBufferedImage();
@@ -184,9 +185,9 @@ public class NucleusCounter implements PlugIn {
 					}
 				}
 			}
-			RoiManager.getInstance().reset();
+			roiManager.reset();
 			for (ShapeRoi shapeRoi : rois) {
-				RoiManager.getInstance().addRoi(shapeRoi);
+				roiManager.addRoi(shapeRoi);
 			}
 		}
 		ShapeRoi biggest = rois.get(0);
@@ -206,8 +207,8 @@ public class NucleusCounter implements PlugIn {
 				biggest.or(shapeRoi);
 			}
 		}
-		RoiManager.getInstance().reset();
-		RoiManager.getInstance().addRoi(biggest);
+		roiManager.reset();
+		roiManager.addRoi(biggest);
 
 		double[] center = biggest.getContourCentroid();
 		OvalRoi centerRoi = new OvalRoi(center[0] - 10, center[1] - 1, 20, 20);
@@ -265,9 +266,9 @@ public class NucleusCounter implements PlugIn {
 		Roi type2 = RoiEnlarger.enlarge(hitPart, 15d);
 
 		if (!keepReferencialArea) {
-			RoiManager.getInstance().reset();
+			roiManager.reset();
 		}
-		RoiManager.getInstance().addRoi(larger);
+		roiManager.addRoi(larger);
 
 		CellCounter.checkInRegion(larger, type2);
 

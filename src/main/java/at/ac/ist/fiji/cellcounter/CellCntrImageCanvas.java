@@ -39,6 +39,8 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Font;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.ListIterator;
 import java.util.Vector;
 
@@ -87,7 +89,7 @@ public class CellCntrImageCanvas extends ImageCanvas {
 		} else if (IJ.controlKeyDown()) {
 			cc.clickWithCtrl(x, y);
 		} else if (!delmode) {
-			CellCntrMarker m = new CellCntrMarker(x, y, img.getCurrentSlice());
+			CellCntrMarker m = new CellCntrMarker(x, y, img.getCurrentSlice(), null);
 			currentMarkerVector.addMarker(m);
 			if (currentMarkerVector.getType() == 7) {
 				cc.tailRetractionMarker(currentMarkerVector);
@@ -151,26 +153,29 @@ public class CellCntrImageCanvas extends ImageCanvas {
 		Graphics2D g2 = (Graphics2D) g;
 		g2.setStroke(new BasicStroke(1f));
 		g2.setFont(font);
-
-		ListIterator it = typeVector.listIterator();
+		ListIterator<CellCntrMarkerVector> it = typeVector.listIterator();
 		while (it.hasNext()) {
 			CellCntrMarkerVector mv = (CellCntrMarkerVector) it.next();
 			int typeID = mv.getType();
 			g2.setColor(mv.getColor());
-			ListIterator mit = mv.listIterator();
-			while (mit.hasNext()) {
-				CellCntrMarker m = (CellCntrMarker) mit.next();
-				boolean sameSlice = m.getZ() == img.getCurrentSlice();
-				if (sameSlice || showAll) {
-					xM = ((m.getX() - srcRect.x) * magnification);
-					yM = ((m.getY() - srcRect.y) * magnification);
-					if (sameSlice)
-						g2.fillOval((int) xM - 2, (int) yM - 2, POINT_SIZE, POINT_SIZE);
-					else
-						g2.drawOval((int) xM - 2, (int) yM - 2, POINT_SIZE, POINT_SIZE);
-					if (showNumbers)
-						g2.drawString(Integer.toString(typeID), (int) xM + 3, (int) yM - 3);
+			try {
+				ListIterator<CellCntrMarker> mit = new ArrayList<>(mv).listIterator();
+				while (mit.hasNext()) {
+					CellCntrMarker m = mit.next();
+					boolean sameSlice = m.getZ() == img.getCurrentSlice();
+					if (sameSlice || showAll) {
+						xM = ((m.getX() - srcRect.x) * magnification);
+						yM = ((m.getY() - srcRect.y) * magnification);
+						if (sameSlice)
+							g2.fillOval((int) xM - 2, (int) yM - 2, POINT_SIZE, POINT_SIZE);
+						else
+							g2.drawOval((int) xM - 2, (int) yM - 2, POINT_SIZE, POINT_SIZE);
+						if (showNumbers)
+							g2.drawString(Integer.toString(typeID), (int) xM + 3, (int) yM - 3);
+					}
 				}
+			} catch (ConcurrentModificationException ccm) {
+				// ignore this a repaint will occure
 			}
 		}
 	}

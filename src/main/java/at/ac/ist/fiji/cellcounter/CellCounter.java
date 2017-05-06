@@ -837,8 +837,8 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		instance.ic.repaint();
 	}
 
-	public static void add(int x, int y, int z) {
-		CellCntrMarker marker = new CellCntrMarker(x, y, z);
+	public static void add(int x, int y, int z, Roi roi) {
+		CellCntrMarker marker = new CellCntrMarker(x, y, z, roi);
 		instance.getCurrentMarkerVector();
 		((CellCntrMarkerVector) instance.typeVector.get(0)).addMarker(marker);
 		updateGui();
@@ -1054,7 +1054,7 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		// a1.x + b1 = a2.x + b2 => x=(b2-b1)/(a1-a2)
 		double x = (bRechtDrauf - b) / (a - aRechtDrauf);
 		double y = aRechtDrauf * x + bRechtDrauf;
-		CellCntrMarker basePoint = new CellCntrMarker((int) x, (int) y, p1.getZ());
+		CellCntrMarker basePoint = new CellCntrMarker((int) x, (int) y, p1.getZ(), null);
 		currentMarkerVector.add(0, basePoint);
 
 		double sdist1 = distanceBetweenPointAndMarker(l1, x, y);
