@@ -9,9 +9,9 @@
 		<artifactId>pom-fiji</artifactId>
 		<version>26.1.1</version>
 	</parent>
-	
+
 	<groupId>at.ac.ist.fiji</groupId>
-	<artifactId>nucluescounter</artifactId>
+	<artifactId>nuclues_counter</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
 
 	<name>Fiji Nuclues Counter</name>
@@ -53,8 +53,8 @@
 		<url>https://github.com/ritchieGitHub/nucluescounter</url>
 		<tag>HEAD</tag>
 	</scm>
-	
-	
+
+
 	<issueManagement>
 		<system>GitHub</system>
 		<url>https://github.com/ritchieGitHub/nucluescounter/issues</url>
@@ -99,16 +99,11 @@
 		</plugins>
 	</build>
 	<dependencies>
-		<!-- Fiji dependencies -->
-		<dependency>
-			<groupId>sc.fiji</groupId>
-			<artifactId>bij</artifactId>
-		</dependency>
-
 		<!-- ImageJ dependencies -->
 		<dependency>
 			<groupId>net.imagej</groupId>
 			<artifactId>ij</artifactId>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>de.lmu.ifi.dbs.jfeaturelib</groupId>
@@ -118,6 +113,30 @@
 				<exclusion>
 					<groupId>gov.nih.imagej</groupId>
 					<artifactId>imagej</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>net.semanticmetadata</groupId>
+					<artifactId>lire</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-io</groupId>
+					<artifactId>commons-io</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>args4j</groupId>
+					<artifactId>args4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-lang3</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

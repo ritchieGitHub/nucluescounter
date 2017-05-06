@@ -21,7 +21,7 @@ import ij.plugin.RoiEnlarger;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 
-public class Nucleus_Counter_Julia implements PlugIn {
+public class NucleusCounter implements PlugIn {
 	private DottersacDetection dottersacDetection;
 
 	@Override
