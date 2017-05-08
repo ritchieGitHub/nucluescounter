@@ -77,6 +77,7 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 	private static final String LOADMARKERS = "Load Markers";
 	private static final String EXPORTIMG = "Export Image";
 	private static final String MEASURE = "Measure...";
+	private static final String NEW_GERM_BAND = "New germ band";
 
 	private Vector typeVector;
 	private Vector<JRadioButton> dynRadioVector;
@@ -104,6 +105,7 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 	private JButton loadButton;
 	private JButton exportimgButton;
 	private JButton measureButton;
+	private JButton germButton;
 
 	private boolean keepOriginal = false;
 
@@ -407,6 +409,16 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 
 		gbc = new GridBagConstraints();
 		gbc.anchor = GridBagConstraints.NORTHWEST;
+		gbc.fill = GridBagConstraints.BOTH;
+		gbc.gridx = 0;
+		gbc.gridwidth = GridBagConstraints.REMAINDER;
+		germButton = makeButton(NEW_GERM_BAND, "Start draw manual germ band");
+		germButton.setEnabled(false);
+		gb.setConstraints(germButton, gbc);
+		statButtonPanel.add(germButton);
+
+		gbc = new GridBagConstraints();
+		gbc.anchor = GridBagConstraints.NORTHWEST;
 		gbc.fill = GridBagConstraints.NONE;
 		gbc.ipadx = 5;
 		gb.setConstraints(statButtonPanel, gbc);
@@ -524,6 +536,8 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 			exportButton.setEnabled(true);
 		exportimgButton.setEnabled(true);
 		measureButton.setEnabled(true);
+		germButton.setEnabled(true);
+		CellCounter.setType("1");
 	}
 
 	void validateLayout() {
@@ -606,10 +620,18 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 			ic.imageWithMarkers().show();
 		} else if (command.compareTo(MEASURE) == 0) {
 			measure();
+		} else if (command.compareTo(NEW_GERM_BAND) == 0) {
+			newGermBand();
 		}
 		if (ic != null)
 			ic.repaint();
 		populateTxtFields();
+	}
+
+	boolean newGermBandActive = false;
+
+	private void newGermBand() {
+		newGermBandActive = true;
 	}
 
 	public void itemStateChanged(ItemEvent e) {
@@ -849,13 +871,31 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 	}
 
 	private List<CellCntrMarker> invisiblePoints = new ArrayList<>();
+
 	private Roi larger;
 	private Roi justOutOfRange;
 	private String tailRetraction = "";
 
+	private AnalysisState analysisState = AnalysisState.NORMAL;
+
+	public AnalysisState getAnalysisState() {
+		return analysisState;
+	}
+
+	public void setAnalysisState(AnalysisState state) {
+		this.analysisState = state;
+	}
+
+	public static void setState(AnalysisState state) {
+		instance.setAnalysisState(state);
+	}
+
 	public static void checkInRegion(Roi larger, Roi justOutOfRange) {
 		instance.larger = larger;
 		instance.justOutOfRange = justOutOfRange;
+		if (instance.larger == null || instance.justOutOfRange == null) {
+			return;
+		}
 		HashSet<CellCntrMarker> allPoints = new HashSet<>();
 
 		allPoints.addAll(instance.invisiblePoints);
@@ -1065,14 +1105,18 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		NumberFormat percentInstance = DecimalFormat.getPercentInstance();
 		IJ.showStatus("tail retraction = " + //
 				percentInstance.format(tailRetraction) + //
-				" =(" + decimalFormat.format(longest) + //
+				" =(" + decimalFormat.format(tailDistance) + //
 				"/" + //
-				decimalFormat.format(tailDistance) + //
+				decimalFormat.format(longest) + //
 				")-100%");
 		this.tailRetraction = percentInstance.format(tailRetraction);
 	}
 
 	private static double distanceBetweenTwoMarkers(CellCntrMarker p1, CellCntrMarker p2) {
+		if (new ShapeRoi(p1.getRoi()).and(p2.getRoi()).getFeretsDiameter() > 1) {
+			return 0;
+		}
+		double offset = p1.getZ() == p2.getZ() ? 0 : 5;
 		return Math.sqrt(//
 				(p1.getX() - p2.getX()) * (p1.getX() - p2.getX()) + //
 						(p1.getY() - p2.getY()) * (p1.getY() - p2.getY()));
@@ -1082,9 +1126,11 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		if (l1 == null) {
 			return Double.MAX_VALUE;
 		}
+		double offset = l1.getZ() == instance.img.getZ() ? 0 : 5;
 		return Math.sqrt(//
 				(x - l1.getX()) * (x - l1.getX()) + //
-						(y - l1.getY()) * (y - l1.getY()));
+						(y - l1.getY()) * (y - l1.getY()))
+				+ offset;
 	}
 
 	public void clickWithShiftCtrl(int x, int y) {
@@ -1115,5 +1161,17 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 			forcedDelete.remove(nearestDuplicate);
 		}
 		checkInRegion(larger, justOutOfRange);
+	}
+
+	public void defineNewGermBand(int x, int y) {
+		if (RoiManager.getInstance() == null) {
+			RoiManager.getRoiManager();
+		}
+		larger = new ShapeRoi(new OvalRoi(x - 40, y - 40, 80, 80));
+		justOutOfRange = RoiEnlarger.enlarge(new ShapeRoi(larger), 15d);
+		RoiManager.getInstance().reset();
+		RoiManager.getInstance().addRoi(larger);
+		checkInRegion(larger, justOutOfRange);
+		newGermBandActive = false;
 	}
 }

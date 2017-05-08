@@ -3,8 +3,10 @@ package at.ac.ist.fiji.nucluescounter;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
+import at.ac.ist.fiji.cellcounter.AnalysisState;
 import at.ac.ist.fiji.cellcounter.CellCounter;
 import at.ac.ist.fiji.controladjust.ContrastAdjuster;
 import at.ac.ist.fiji.dottersack.DottersacDetection;
@@ -60,6 +62,7 @@ public class NucleusCounter implements PlugIn {
 		IJ.run("Cell Counter Julia", " add");
 		CellCounter.initializeCellImage();
 		CellCounter.setType("1");
+		CellCounter.setState(AnalysisState.DETECT_GERM_BAND);
 		ImagePlus imp1 = WindowManager.getCurrentImage();
 		// exampleAnalysis(imp1, 30, 15);
 		if (useAutoAdjust) {
@@ -155,6 +158,7 @@ public class NucleusCounter implements PlugIn {
 		if (!detectGermBand) {
 			return;
 		}
+		CellCounter.setState(AnalysisState.DETECT_GERM_BAND);
 		ImagePlus img = WindowManager.getCurrentImage();
 		imp1.setC(2);
 		// exampleAnalysis(img);
@@ -190,6 +194,23 @@ public class NucleusCounter implements PlugIn {
 				roiManager.addRoi(shapeRoi);
 			}
 		}
+		List<ExtendedShapeRoi> shapeRois = new ArrayList<>();
+		for (ShapeRoi shapeRoi : rois) {
+			shapeRois.add(new ExtendedShapeRoi(shapeRoi));
+		}
+		Collections.sort(shapeRois);
+		if (1 == 2) {
+			if (shapeRois.size() > 2) {
+				if (checkConnect(shapeRois.get(1), shapeRois.get(2))) {
+					shapeRois.remove(2);
+				}
+			}
+			if (shapeRois.size() > 1) {
+				if (checkConnect(shapeRois.get(0), shapeRois.get(1))) {
+					shapeRois.remove(2);
+				}
+			}
+		}
 		ShapeRoi biggest = rois.get(0);
 		double boxSize = size(biggest);
 		for (ShapeRoi shapeRoi : rois) {
@@ -201,11 +222,7 @@ public class NucleusCounter implements PlugIn {
 		}
 		rois.remove(biggest);
 		for (ShapeRoi shapeRoi : rois) {
-			ShapeRoi test = new ShapeRoi(shapeRoi);
-			RoiEnlarger.enlarge(test, 5d);
-			if (test.and(biggest).getBounds().getWidth() > 0) {
-				biggest.or(shapeRoi);
-			}
+			shapeRoi.getFeretsDiameter();
 		}
 		roiManager.reset();
 		roiManager.addRoi(biggest);
@@ -274,6 +291,19 @@ public class NucleusCounter implements PlugIn {
 
 		rois.clear();
 
+		CellCounter.setState(AnalysisState.NORMAL);
+	}
+
+	/**
+	 * check if the two shapes are almost connected and if they are connect
+	 * them.
+	 * 
+	 * @param extendedShapeRoi
+	 * @param extendedShapeRoi2
+	 * @return true if the first shaped was connected to the second.
+	 */
+	private boolean checkConnect(ExtendedShapeRoi extendedShapeRoi, ExtendedShapeRoi extendedShapeRoi2) {
+		return extendedShapeRoi.extendTo(extendedShapeRoi2);
 	}
 
 	private double size(ShapeRoi biggest) {

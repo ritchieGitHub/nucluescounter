@@ -6,6 +6,8 @@ package at.ac.ist.fiji.cellcounter;
  *
  */
 
+import ij.gui.OvalRoi;
+
 /*
  *
  * @author Kurt De Vos � 2005
@@ -25,6 +27,7 @@ package at.ac.ist.fiji.cellcounter;
  */
 
 import ij.gui.Roi;
+import ij.gui.ShapeRoi;
 
 /**
  *
@@ -34,7 +37,11 @@ public class CellCntrMarker {
 	private int x;
 	private int y;
 	private int z;
-	private Roi roi;
+	private ShapeRoi roi;
+
+	public ShapeRoi getRoi() {
+		return roi;
+	}
 
 	/** Creates a new instance of Marker */
 	public CellCntrMarker() {
@@ -44,7 +51,11 @@ public class CellCntrMarker {
 		this.x = x;
 		this.y = y;
 		this.z = z;
-		this.roi = roi;
+		if (roi == null) {
+			this.roi = new ShapeRoi(new OvalRoi(x, y, 8, 8));
+		} else {
+			this.roi = roi instanceof ShapeRoi ? (ShapeRoi) roi : new ShapeRoi(roi);
+		}
 	}
 
 	public int getX() {

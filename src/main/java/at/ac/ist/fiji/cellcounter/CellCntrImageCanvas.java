@@ -6,6 +6,20 @@ package at.ac.ist.fiji.cellcounter;
  *
  */
 
+import java.awt.BasicStroke;
+import java.awt.Cursor;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
+import java.util.ListIterator;
+import java.util.Vector;
+
 /*
  *
  * @author Kurt De Vos � 2005
@@ -30,19 +44,6 @@ import ij.gui.ImageCanvas;
 import ij.gui.Roi;
 import ij.gui.Toolbar;
 import ij.process.ImageProcessor;
-import java.awt.BasicStroke;
-import java.awt.Cursor;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.awt.Font;
-import java.awt.event.MouseEvent;
-import java.util.ArrayList;
-import java.util.ConcurrentModificationException;
-import java.util.ListIterator;
-import java.util.Vector;
 
 /**
  *
@@ -69,6 +70,8 @@ public class CellCntrImageCanvas extends ImageCanvas {
 			this.setDisplayList(displayList);
 	}
 
+	boolean mousePressed = false;
+
 	public void mousePressed(MouseEvent e) {
 		if (IJ.spaceBarDown() || Toolbar.getToolId() == Toolbar.MAGNIFIER || Toolbar.getToolId() == Toolbar.HAND) {
 			super.mousePressed(e);
@@ -79,7 +82,7 @@ public class CellCntrImageCanvas extends ImageCanvas {
 			IJ.error("Select a counter type first!");
 			return;
 		}
-
+		mousePressed = true;
 		int x = super.offScreenX(e.getX());
 		int y = super.offScreenY(e.getY());
 		if (IJ.shiftKeyDown() && IJ.controlKeyDown()) {
@@ -88,6 +91,8 @@ public class CellCntrImageCanvas extends ImageCanvas {
 			cc.clickWithShift(x, y);
 		} else if (IJ.controlKeyDown()) {
 			cc.clickWithCtrl(x, y);
+		} else if (cc.newGermBandActive) {
+			cc.defineNewGermBand(x, y);
 		} else if (!delmode) {
 			CellCntrMarker m = new CellCntrMarker(x, y, img.getCurrentSlice(), null);
 			currentMarkerVector.addMarker(m);
@@ -103,10 +108,22 @@ public class CellCntrImageCanvas extends ImageCanvas {
 	}
 
 	public void mouseReleased(MouseEvent e) {
+		mousePressed = false;
 		super.mouseReleased(e);
 	}
 
 	public void mouseMoved(MouseEvent e) {
+		if (mousePressed) {
+			int x = super.offScreenX(e.getX());
+			int y = super.offScreenY(e.getY());
+			if (IJ.shiftKeyDown() && IJ.controlKeyDown()) {
+				cc.clickWithShiftCtrl(x, y);
+			} else if (IJ.shiftKeyDown()) {
+				cc.clickWithShift(x, y);
+			} else if (IJ.controlKeyDown()) {
+				cc.clickWithCtrl(x, y);
+			}
+		}
 		super.mouseMoved(e);
 	}
 
