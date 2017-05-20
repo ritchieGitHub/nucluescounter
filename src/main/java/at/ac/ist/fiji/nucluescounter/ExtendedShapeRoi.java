@@ -1,7 +1,5 @@
 package at.ac.ist.fiji.nucluescounter;
 
-import java.awt.geom.PathIterator;
-
 import ij.gui.OvalRoi;
 import ij.gui.ShapeRoi;
 
@@ -29,94 +27,51 @@ public class ExtendedShapeRoi implements Comparable<ExtendedShapeRoi> {
 
 	@Override
 	public int compareTo(ExtendedShapeRoi o) {
-		return (int) Math.round(diameter - o.diameter);
+		return (int) Math.round(o.diameter - diameter);
 	}
 
 	public boolean extendTo(ExtendedShapeRoi other) {
-		float[] coords = new float[6];
-		PathIterator iterator = roi.getPolygon().getPathIterator(null);
 		Point minMine = new Point(Double.NaN, Double.NaN, Double.MAX_VALUE);
 		Point minOther = new Point(Double.NaN, Double.NaN, Double.MAX_VALUE);
-		while (!iterator.isDone()) {
-			int type = iterator.currentSegment(coords);
-			coords[0] += roi.getXBase();
-			coords[1] += roi.getYBase();
-			coords[2] += roi.getXBase();
-			coords[3] += roi.getYBase();
-			coords[4] += roi.getXBase();
-			coords[5] += roi.getYBase();
+		for (java.awt.Point point : roi.getContainedPoints()) {
 			Point distance = new Point(Double.NaN, Double.NaN, Double.MAX_VALUE);
-			switch (type) {
-			case PathIterator.SEG_CUBICTO:
-				distance = other.distanceTo(coords[4], coords[5]);
-				if (distance.distance < minMine.distance) {
-					minMine = distance;
-					minOther = new Point(coords[4], coords[5], distance.distance);
-				}
-			case PathIterator.SEG_QUADTO:
-				distance = other.distanceTo(coords[2], coords[3]);
-				if (distance.distance < minMine.distance) {
-					minMine = distance;
-					minOther = new Point(coords[4], coords[5], distance.distance);
-				}
-			case PathIterator.SEG_LINETO:
-			case PathIterator.SEG_MOVETO:
-				distance = other.distanceTo(coords[0], coords[1]);
-				if (distance.distance < minMine.distance) {
-					minMine = distance;
-					minOther = new Point(coords[4], coords[5], distance.distance);
-				}
+			distance = other.distanceTo(point.x, point.y);
+			if (distance.distance < minMine.distance) {
+				minMine = distance;
+				minOther = new Point(point.x, point.y, distance.distance);
 			}
-			iterator.next();
 		}
 		double shortest = distanceTo(minMine.x, minMine.y, minOther.x, minOther.y);
-		if (shortest < 40d) {
-			OvalRoi e1 = new OvalRoi(minMine.x - 20d / 2d, minMine.y - 20d / 2d, //
-					20, 20);
-			OvalRoi e2 = new OvalRoi(minOther.x - 20d / 2d, minOther.y - 20d / 2d, //
-					20, 20);
-			OvalRoi e3 = new OvalRoi((minOther.x + minMine.x) / 2d - 20d / 2d, (minOther.y + minMine.y) / 2d - 20d / 2d, //
-					20, 20);
+		double circleDiameter = Math.max(20d, shortest / 2);
+		if (shortest < 80d) {
+			OvalRoi e1 = new OvalRoi(//
+					minMine.x - circleDiameter / 2d, //
+					minMine.y - circleDiameter / 2d, //
+					circleDiameter, circleDiameter);
+			OvalRoi e2 = new OvalRoi(//
+					minOther.x - circleDiameter / 2d, //
+					minOther.y - circleDiameter / 2d, //
+					circleDiameter, circleDiameter);
+			OvalRoi e3 = new OvalRoi(//
+					(minOther.x + minMine.x) / 2d - circleDiameter / 2d, //
+					(minOther.y + minMine.y) / 2d - circleDiameter / 2d, //
+					circleDiameter, circleDiameter);
 			roi.or(new ShapeRoi(e1));
 			roi.or(new ShapeRoi(e2));
 			roi.or(new ShapeRoi(e3));
 			roi.or(other.roi);
+			return true;
 		}
 		return false;
 	}
 
 	private Point distanceTo(double x, double y) {
-		float[] coords = new float[6];
-		PathIterator iterator = roi.getPolygon().getPathIterator(null);
 		Point min = new Point(Double.NaN, Double.NaN, Double.MAX_VALUE);
-		while (!iterator.isDone()) {
-			int type = iterator.currentSegment(coords);
-			coords[0] += roi.getXBase();
-			coords[1] += roi.getYBase();
-			coords[2] += roi.getXBase();
-			coords[3] += roi.getYBase();
-			coords[4] += roi.getXBase();
-			coords[5] += roi.getYBase();
-			double distance = Double.MAX_VALUE;
-			switch (type) {
-			case PathIterator.SEG_CUBICTO:
-				distance = distanceTo(coords[4], coords[5], x, y);
-				if (distance < min.distance) {
-					min = new Point(coords[4], coords[5], distance);
-				}
-			case PathIterator.SEG_QUADTO:
-				distance = distanceTo(coords[2], coords[3], x, y);
-				if (distance < min.distance) {
-					min = new Point(coords[2], coords[3], distance);
-				}
-			case PathIterator.SEG_LINETO:
-			case PathIterator.SEG_MOVETO:
-				distance = distanceTo(coords[0], coords[1], x, y);
-				if (distance < min.distance) {
-					min = new Point(coords[0], coords[1], distance);
-				}
+		for (java.awt.Point point : roi.getContainedPoints()) {
+			double distance = distanceTo(point.x, point.y, x, y);
+			if (distance < min.distance) {
+				min = new Point(point.x, point.y, distance);
 			}
-			iterator.next();
 		}
 		return min;
 	}

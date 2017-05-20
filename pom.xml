@@ -21,6 +21,7 @@
 
 	<properties>
 		<package-name>at.ac.ist.fiji.nucluescounter</package-name>
+		<maven.javadoc.skip>true</maven.javadoc.skip>
 	</properties>
 
 	<developers>

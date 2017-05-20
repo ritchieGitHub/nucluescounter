@@ -37,6 +37,7 @@ public class CellCntrMarker {
 	private int x;
 	private int y;
 	private int z;
+	private int realZ;
 	private ShapeRoi roi;
 
 	public ShapeRoi getRoi() {
@@ -47,10 +48,11 @@ public class CellCntrMarker {
 	public CellCntrMarker() {
 	}
 
-	public CellCntrMarker(int x, int y, int z, Roi roi) {
+	public CellCntrMarker(int x, int y, int z, int realZ, Roi roi) {
 		this.x = x;
 		this.y = y;
 		this.z = z;
+		this.realZ = realZ;
 		if (roi == null) {
 			this.roi = new ShapeRoi(new OvalRoi(x, y, 8, 8));
 		} else {
@@ -76,6 +78,10 @@ public class CellCntrMarker {
 
 	public int getZ() {
 		return z;
+	}
+
+	public int getRealZ() {
+		return realZ;
 	}
 
 	public void setZ(int z) {

@@ -94,7 +94,7 @@ public class CellCntrImageCanvas extends ImageCanvas {
 		} else if (cc.newGermBandActive) {
 			cc.defineNewGermBand(x, y);
 		} else if (!delmode) {
-			CellCntrMarker m = new CellCntrMarker(x, y, img.getCurrentSlice(), null);
+			CellCntrMarker m = new CellCntrMarker(x, y, img.getCurrentSlice(), img.getZ(), null);
 			currentMarkerVector.addMarker(m);
 			if (currentMarkerVector.getType() == 7) {
 				cc.tailRetractionMarker(currentMarkerVector);

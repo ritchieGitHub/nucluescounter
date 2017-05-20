@@ -35,19 +35,17 @@ public class NucleusCounter implements PlugIn {
 		}
 
 		final GenericDialog gd = new GenericDialog("Nucleus Counter Julia");
-		gd.addCheckbox("use auto adjust", true);
 		gd.addNumericField("Subtract", 50, 0);
 		gd.addNumericField("Gaussian Blur", 0.6, 1);
 		gd.addNumericField("Multiply", 2, 0);
 		gd.addNumericField("Z-upper-limit 0=default", 0, 0);
 		gd.addNumericField("Z-lower-limit 0=default", 0, 0);
 		gd.addCheckbox("keep referencial area", false);
-		gd.addCheckbox("detect germ band", false);
+		gd.addCheckbox("detect germ band", true);
 		gd.showDialog();
 		if (gd.wasCanceled())
 			return;
 
-		boolean useAutoAdjust = gd.getNextBoolean();
 		double subtractParam = gd.getNextNumber();
 		double gaussianBlurParam = gd.getNextNumber();
 		double multiplyParam = gd.getNextNumber();
@@ -65,15 +63,20 @@ public class NucleusCounter implements PlugIn {
 		CellCounter.setState(AnalysisState.DETECT_GERM_BAND);
 		ImagePlus imp1 = WindowManager.getCurrentImage();
 		// exampleAnalysis(imp1, 30, 15);
-		if (useAutoAdjust) {
-			new ContrastAdjuster().run(true, false, gaussianBlurParam);
-		}
+
+		new ContrastAdjuster().run(true, false, gaussianBlurParam);
+		RoiManager roiManager = null;
 		imp1.setC(1);
-		int nSlices = imp1.getNSlices();
-		for (int index = 1; index <= nSlices; index++) {
+		int nSlices = imp1.getStackSize();
+		for (int index = 1; index <= nSlices; index += 2) {
 			imp1 = WindowManager.getCurrentImage();
-			imp1.setZ(index);
+			imp1.setSlice(index);
+			imp1.setZ((index + 1) / 2);
+
+			int currentZ = imp1.getZ();
 			int currentSlice = imp1.getCurrentSlice();
+			System.out.println("currentSlice:" + currentSlice + " currentZ: " + currentZ);
+
 			final ImageProcessor ip1 = imp1.getProcessor();
 			if (imp1.getType() != ImagePlus.GRAY8 && imp1.getType() != ImagePlus.GRAY16) {
 				IJ.showMessage("Error", "Plugin requires 8- or 16-bit image");
@@ -88,15 +91,11 @@ public class NucleusCounter implements PlugIn {
 
 			new ImagePlus("Analysis", ip2).show();
 			final ImagePlus imp2 = WindowManager.getCurrentImage();
-			if (useAutoAdjust) {
-				IJ.run(imp2, "Subtract...", "value=" + subtractParam);
-				IJ.run(imp2, "Gaussian Blur...", "sigma=" + gaussianBlurParam);
-				IJ.run(imp2, "Multiply...", "value=" + multiplyParam);
-			} else {
-				IJ.run(imp2, "Subtract...", "value=" + subtractParam);
-				IJ.run(imp2, "Gaussian Blur...", "sigma=" + gaussianBlurParam);
-				IJ.run(imp2, "Multiply...", "value=" + multiplyParam);
-			}
+
+			IJ.run(imp2, "Subtract...", "value=" + subtractParam);
+			IJ.run(imp2, "Gaussian Blur...", "sigma=" + gaussianBlurParam);
+			IJ.run(imp2, "Multiply...", "value=" + multiplyParam);
+
 			IJ.run(imp2, "Grays", "");
 
 			// IJ.showMessage("phase1");
@@ -143,11 +142,14 @@ public class NucleusCounter implements PlugIn {
 			imp1.setSlice(currentSlice);
 			WindowManager.setCurrentWindow(imp1.getWindow());
 
-			for (Roi roi : RoiManager.getRoiManager().getRoisAsArray()) {
-				double[] center = roi.getContourCentroid();
-				CellCounter.add((int) center[0], (int) center[1], currentSlice, roi);
+			if (roiManager == null) {
+				roiManager = RoiManager.getRoiManager();
 			}
-			RoiManager.getRoiManager().reset();
+			for (Roi roi : roiManager.getRoisAsArray()) {
+				double[] center = roi.getContourCentroid();
+				CellCounter.add((int) center[0], (int) center[1], currentSlice, currentZ, roi);
+			}
+			roiManager.reset();
 			imp2.changes = false;
 			winimp2.close();
 			WindowManager.setCurrentWindow(winimp3);
@@ -175,7 +177,6 @@ public class NucleusCounter implements PlugIn {
 		List<ShapeRoi> rois = new ArrayList<>();
 		// RoiManager.getRoiManager().setVisible(true);
 
-		RoiManager roiManager = RoiManager.getInstance();
 		for (int index = zMin; index <= zMax; index++) {
 			img.setZ(index);
 			BufferedImage bufferedImage = img.getBufferedImage();
@@ -199,18 +200,18 @@ public class NucleusCounter implements PlugIn {
 			shapeRois.add(new ExtendedShapeRoi(shapeRoi));
 		}
 		Collections.sort(shapeRois);
-		if (1 == 2) {
-			if (shapeRois.size() > 2) {
-				if (checkConnect(shapeRois.get(1), shapeRois.get(2))) {
-					shapeRois.remove(2);
-				}
-			}
-			if (shapeRois.size() > 1) {
-				if (checkConnect(shapeRois.get(0), shapeRois.get(1))) {
-					shapeRois.remove(2);
-				}
+
+		if (shapeRois.size() > 2) {
+			if (checkConnect(shapeRois.get(1), shapeRois.get(2))) {
+				shapeRois.remove(2);
 			}
 		}
+		if (shapeRois.size() > 1) {
+			if (checkConnect(shapeRois.get(0), shapeRois.get(1))) {
+				shapeRois.remove(2);
+			}
+		}
+
 		ShapeRoi biggest = rois.get(0);
 		double boxSize = size(biggest);
 		for (ShapeRoi shapeRoi : rois) {

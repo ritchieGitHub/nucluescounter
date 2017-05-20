@@ -24,6 +24,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
@@ -34,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Set;
 import java.util.Vector;
 
 import javax.swing.BorderFactory;
@@ -859,8 +862,11 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		instance.ic.repaint();
 	}
 
-	public static void add(int x, int y, int z, Roi roi) {
-		CellCntrMarker marker = new CellCntrMarker(x, y, z, roi);
+	public static void add(int x, int y, int z, int realZ, Roi roi) {
+		if (z > 21) {
+			"".toString();
+		}
+		CellCntrMarker marker = new CellCntrMarker(x, y, z, realZ, roi);
 		instance.getCurrentMarkerVector();
 		((CellCntrMarkerVector) instance.typeVector.get(0)).addMarker(marker);
 		updateGui();
@@ -923,16 +929,21 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		}
 		((CellCntrMarkerVector) instance.typeVector.get(0)).removeAll(instance.invisiblePoints);
 		List<CellCntrMarker> moveToType3 = new ArrayList<>();
+		Set<Roi> rois = new HashSet<>();
 		for (CellCntrMarker marker : ((CellCntrMarkerVector) instance.typeVector.get(0))) {
 			for (CellCntrMarker otherMarker : ((CellCntrMarkerVector) instance.typeVector.get(0))) {
 				if (marker != otherMarker && //
-						!moveToType3.contains(marker) && !moveToType3.contains(otherMarker) && //
-						Math.abs(marker.getZ() - otherMarker.getZ()) < 2) {
-					if (distanceBetweenTwoMarkers(marker, otherMarker) < 8.1) {
+						!moveToType3.contains(marker) && !moveToType3.contains(otherMarker)) {
+					if (areTwoMarkersSame(marker, otherMarker)) {
 						moveToType3.add(otherMarker);
+						rois.add(marker.getRoi());
+						rois.add(otherMarker.getRoi());
 					}
 				}
 			}
+		}
+		for (Roi roi2 : rois) {
+			RoiManager.getInstance().addRoi(roi2);
 		}
 		moveToType3.removeAll(instance.forcedInRange);
 		((CellCntrMarkerVector) instance.typeVector.get(0)).removeAll(moveToType3);
@@ -1094,7 +1105,7 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		// a1.x + b1 = a2.x + b2 => x=(b2-b1)/(a1-a2)
 		double x = (bRechtDrauf - b) / (a - aRechtDrauf);
 		double y = aRechtDrauf * x + bRechtDrauf;
-		CellCntrMarker basePoint = new CellCntrMarker((int) x, (int) y, p1.getZ(), null);
+		CellCntrMarker basePoint = new CellCntrMarker((int) x, (int) y, p1.getZ(), p1.getRealZ(), null);
 		currentMarkerVector.add(0, basePoint);
 
 		double sdist1 = distanceBetweenPointAndMarker(l1, x, y);
@@ -1112,21 +1123,66 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		this.tailRetraction = percentInstance.format(tailRetraction);
 	}
 
-	private static double distanceBetweenTwoMarkers(CellCntrMarker p1, CellCntrMarker p2) {
-		if (new ShapeRoi(p1.getRoi()).and(p2.getRoi()).getFeretsDiameter() > 1) {
-			return 0;
+	private static boolean areTwoMarkersSame(CellCntrMarker current, CellCntrMarker other) {
+		int layerDistance = Math.abs(current.getZ() - other.getZ());
+		if (layerDistance > 2 || layerDistance == 0) {
+			return false;
 		}
-		double offset = p1.getZ() == p2.getZ() ? 0 : 5;
+		double both = getContainedPointsCount(current.getRoi(), other.getRoi());
+		if (both > 0.1) {
+			double currentPoints = getContainedPointsCount(current.getRoi());
+			double otherPoints = getContainedPointsCount(other.getRoi());
+			if ((both / currentPoints) > 0.4 || (both / otherPoints) > 0.4) {
+				System.out.println("duplicate " + //
+						current.getRoi() + "(" + current.getZ() + ")" + "\t/\t" + //
+						other.getRoi() + "(" + other.getZ() + ")");
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static double distanceBetweenTwoMarkers(CellCntrMarker current, CellCntrMarker other) {
 		return Math.sqrt(//
-				(p1.getX() - p2.getX()) * (p1.getX() - p2.getX()) + //
-						(p1.getY() - p2.getY()) * (p1.getY() - p2.getY()));
+				(current.getX() - other.getX()) * (current.getX() - other.getX()) + //
+						(current.getY() - other.getY()) * (current.getY() - other.getY()));
+	}
+
+	private static int getContainedPointsCount(Roi roi) {
+		Rectangle bounds = roi.getBounds();
+		int count = 0;
+		int xOffset = bounds.x;
+		int yOffset = bounds.y;
+		for (int y = 0; y < bounds.height; y++) {
+			for (int x = 0; x < bounds.width; x++) {
+				if (roi.contains(x + xOffset, y + yOffset)) {
+					count++;
+				}
+			}
+		}
+		return count;
+	}
+
+	private static int getContainedPointsCount(Roi roi1, Roi roi2) {
+		Rectangle bounds = roi1.getBounds();
+		int count = 0;
+		int xOffset = bounds.x;
+		int yOffset = bounds.y;
+		for (int y = 0; y < bounds.height; y++) {
+			for (int x = 0; x < bounds.width; x++) {
+				if (roi1.contains(x + xOffset, y + yOffset) && roi2.contains(x + xOffset, y + yOffset)) {
+					count++;
+				}
+			}
+		}
+		return count;
 	}
 
 	private static double distanceBetweenPointAndMarker(CellCntrMarker l1, double x, double y) {
 		if (l1 == null) {
 			return Double.MAX_VALUE;
 		}
-		double offset = l1.getZ() == instance.img.getZ() ? 0 : 5;
+		double offset = Math.abs(l1.getZ() - instance.img.getZ()) * 20;
 		return Math.sqrt(//
 				(x - l1.getX()) * (x - l1.getX()) + //
 						(y - l1.getY()) * (y - l1.getY()))
