@@ -30,6 +30,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.io.File;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -776,6 +777,29 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		wxml.writeXML(img.getTitle(), typeVector, typeVector.indexOf(currentMarkerVector));
 	}
 
+	long lastSave;
+
+	public void autoExportMarkers() {
+		long newTime = System.currentTimeMillis();
+		if (newTime - lastSave < 5000) {
+			return; // save only every 5 sec
+		}
+		lastSave = newTime;
+		String filename = img.getOriginalFileInfo().fileName;
+		File file = new File(img.getOriginalFileInfo().directory,
+				filename.substring(0, filename.lastIndexOf(".")) + "_000_cellcounter.xml");
+		String filePath = file.getAbsolutePath();
+		int counter = 0;
+		while (new File(filePath).exists() && counter < 900) {
+			counter++;
+			file = new File(img.getOriginalFileInfo().directory, filename.substring(0, filename.lastIndexOf("."))
+					+ String.format("%03d", counter) + "_cellcounter.xml");
+			filePath = file.getAbsolutePath();
+		}
+		WriteXML wxml = new WriteXML(filePath);
+		wxml.writeXML(img.getTitle(), typeVector, typeVector.indexOf(currentMarkerVector));
+	}
+
 	public static final int SAVE = FileDialog.SAVE, OPEN = FileDialog.LOAD;
 	private static final String TAIL_RETRACT = "Tail reatr.";
 	private static final String COUNTED = "Counted";
@@ -798,8 +822,9 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		fd = new FileDialog(parent, dialogMessage, dialogType);
 		switch (dialogType) {
 		case (SAVE):
-			String filename = img.getTitle();
-			fd.setFile("CellCounter_" + filename.substring(0, filename.lastIndexOf(".") + 1) + "xml");
+			String filename = img.getOriginalFileInfo().fileName;
+			fd.setDirectory(img.getOriginalFileInfo().directory);
+			fd.setFile(filename.substring(0, filename.lastIndexOf(".")) + "_cellcounter.xml");
 			break;
 		}
 		fd.setVisible(true);
@@ -863,9 +888,6 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 	}
 
 	public static void add(int x, int y, int z, int realZ, Roi roi) {
-		if (z > 21) {
-			"".toString();
-		}
 		CellCntrMarker marker = new CellCntrMarker(x, y, z, realZ, roi);
 		instance.getCurrentMarkerVector();
 		((CellCntrMarkerVector) instance.typeVector.get(0)).addMarker(marker);
@@ -942,14 +964,17 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 				}
 			}
 		}
-		for (Roi roi2 : rois) {
-			RoiManager.getInstance().addRoi(roi2);
+		if (1 == 2) {// debug rois
+			for (Roi roi2 : rois) {
+				RoiManager.getInstance().addRoi(roi2);
+			}
 		}
 		moveToType3.removeAll(instance.forcedInRange);
 		((CellCntrMarkerVector) instance.typeVector.get(0)).removeAll(moveToType3);
 		((CellCntrMarkerVector) instance.typeVector.get(0)).addAll(instance.forcedInRange);
 		((CellCntrMarkerVector) instance.typeVector.get(2)).addAll(moveToType3);
 		updateGui();
+		instance.autoExportMarkers();
 	}
 
 	public static void close() {

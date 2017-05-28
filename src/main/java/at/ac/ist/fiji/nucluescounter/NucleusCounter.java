@@ -68,6 +68,7 @@ public class NucleusCounter implements PlugIn {
 		RoiManager roiManager = null;
 		imp1.setC(1);
 		int nSlices = imp1.getStackSize();
+		int maxCellSize = (imp1.getWidth() * imp1.getHeight()) / 3150;
 		for (int index = 1; index <= nSlices; index += 2) {
 			imp1 = WindowManager.getCurrentImage();
 			imp1.setSlice(index);
@@ -133,7 +134,9 @@ public class NucleusCounter implements PlugIn {
 			// summarize");
 
 			// analyze particles
-			String analyseStr = "size=9-800 circularity=0.00-2.00 show=Nothing exclude clear add";
+		
+
+			String analyseStr = "size=5-" + maxCellSize + " circularity=0.00-2.00 show=Nothing exclude clear add";
 
 			// IJ.showMessage("phase5");
 
