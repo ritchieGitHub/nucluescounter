@@ -17,6 +17,7 @@ package at.ac.ist.fiji.cellcounter;
  *
  */
 
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.FileDialog;
@@ -24,7 +25,6 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -60,6 +60,7 @@ import ij.WindowManager;
 import ij.gui.ImageWindow;
 import ij.gui.OvalRoi;
 import ij.gui.Roi;
+import ij.gui.ScrollbarWithLabel;
 import ij.gui.ShapeRoi;
 import ij.gui.StackWindow;
 import ij.plugin.RoiEnlarger;
@@ -542,6 +543,16 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		measureButton.setEnabled(true);
 		germButton.setEnabled(true);
 		CellCounter.setType("1");
+		forceBlockMoveToOne();
+	}
+
+	private void forceBlockMoveToOne() {
+		ImageWindow window = WindowManager.getCurrentImage().getWindow();
+		for (Component component : window.getComponents()) {
+			if (component instanceof ScrollbarWithLabel) {
+				((ScrollbarWithLabel) component).setBlockIncrement(1);
+			}
+		}
 	}
 
 	void validateLayout() {
@@ -587,15 +598,31 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		} else if (command.compareTo(INITIALIZE) == 0) {
 			initializeImage();
 		} else if (command.equals(TAIL_RETRACT)) { // COUNT
+			if (ic == null) {
+				IJ.error("You need to initialize first");
+				return;
+			}
 			currentMarkerVector = (CellCntrMarkerVector) typeVector.get(6);
 			ic.setCurrentMarkerVector(currentMarkerVector);
 		} else if (command.equals(COUNTED)) { // COUNT
+			if (ic == null) {
+				IJ.error("You need to initialize first");
+				return;
+			}
 			currentMarkerVector = (CellCntrMarkerVector) typeVector.get(0);
 			ic.setCurrentMarkerVector(currentMarkerVector);
 		} else if (command.equals(OUT_OF_RANGE)) { // COUNT
+			if (ic == null) {
+				IJ.error("You need to initialize first");
+				return;
+			}
 			currentMarkerVector = (CellCntrMarkerVector) typeVector.get(1);
 			ic.setCurrentMarkerVector(currentMarkerVector);
 		} else if (command.equals(DOUBLE)) { // COUNT
+			if (ic == null) {
+				IJ.error("You need to initialize first");
+				return;
+			}
 			currentMarkerVector = (CellCntrMarkerVector) typeVector.get(2);
 			ic.setCurrentMarkerVector(currentMarkerVector);
 		} else if (command.startsWith("Type")) { // COUNT
@@ -792,7 +819,7 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		int counter = 0;
 		while (new File(filePath).exists() && counter < 900) {
 			counter++;
-			file = new File(img.getOriginalFileInfo().directory, filename.substring(0, filename.lastIndexOf("."))
+			file = new File(img.getOriginalFileInfo().directory, filename.substring(0, filename.lastIndexOf(".")) + "_"
 					+ String.format("%03d", counter) + "_cellcounter.xml");
 			filePath = file.getAbsolutePath();
 		}
@@ -922,6 +949,7 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		instance.larger = larger;
 		instance.justOutOfRange = justOutOfRange;
 		if (instance.larger == null || instance.justOutOfRange == null) {
+			updateGui();
 			return;
 		}
 		HashSet<CellCntrMarker> allPoints = new HashSet<>();
@@ -991,6 +1019,9 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 	}
 
 	public void clickWithShift(int x, int y) {
+		if (larger == null) {
+			return;
+		}
 		boolean expandMode = larger.contains(x, y);
 		int expansionSize = 0;
 		ShapeRoi expansion = null;
@@ -1207,7 +1238,7 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		if (l1 == null) {
 			return Double.MAX_VALUE;
 		}
-		double offset = Math.abs(l1.getZ() - instance.img.getZ()) * 20;
+		double offset = Math.abs(l1.getZ() - instance.counterImg.getCurrentSlice()) * 20;
 		return Math.sqrt(//
 				(x - l1.getX()) * (x - l1.getX()) + //
 						(y - l1.getY()) * (y - l1.getY()))
@@ -1229,10 +1260,18 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 			forcedDuplicate.remove(nearestOutOfRange);
 			forcedInRange.remove(nearestOutOfRange);
 			forcedDelete.remove(nearestOutOfRange);
+			// in case of no roi nearestOutOfRange -> counted
+			((CellCntrMarkerVector) typeVector.get(0)).add(nearestOutOfRange);
+			((CellCntrMarkerVector) typeVector.get(1)).remove(nearestOutOfRange);
+			((CellCntrMarkerVector) typeVector.get(2)).remove(nearestOutOfRange);
 		} else if (distCount < distDupl && distCount < distOutOfRange) {
 			forcedDuplicate.remove(nearestCounted);
 			forcedInRange.remove(nearestCounted);
 			forcedDelete.remove(nearestCounted);
+			// in case of no roi nearestCounted -> counted
+			((CellCntrMarkerVector) typeVector.get(0)).remove(nearestCounted);
+			((CellCntrMarkerVector) typeVector.get(1)).remove(nearestCounted);
+			((CellCntrMarkerVector) typeVector.get(2)).add(nearestCounted);
 		} else {
 			if (forcedDuplicate.remove(nearestDuplicate)) {
 				forcedInRange.remove(nearestDuplicate);
@@ -1240,6 +1279,10 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 				forcedInRange.add(nearestDuplicate);
 			}
 			forcedDelete.remove(nearestDuplicate);
+			// in case of no roi nearestDuplicate -> gone
+			((CellCntrMarkerVector) typeVector.get(0)).remove(nearestDuplicate);
+			((CellCntrMarkerVector) typeVector.get(1)).add(nearestDuplicate);
+			((CellCntrMarkerVector) typeVector.get(2)).remove(nearestDuplicate);
 		}
 		checkInRegion(larger, justOutOfRange);
 	}
