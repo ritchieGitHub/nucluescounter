@@ -63,6 +63,7 @@ import ij.gui.Roi;
 import ij.gui.ScrollbarWithLabel;
 import ij.gui.ShapeRoi;
 import ij.gui.StackWindow;
+import ij.io.FileInfo;
 import ij.plugin.RoiEnlarger;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
@@ -812,19 +813,31 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 			return; // save only every 5 sec
 		}
 		lastSave = newTime;
-		String filename = img.getOriginalFileInfo().fileName;
-		File file = new File(img.getOriginalFileInfo().directory,
-				filename.substring(0, filename.lastIndexOf(".")) + "_000_cellcounter.xml");
+		String filename = fileInfo().fileName;
+		String nameWithoutPrefix = filename.substring(0, filename.lastIndexOf("."));
+		File file = new File(new File(fileInfo().directory, nameWithoutPrefix),
+				nameWithoutPrefix + "_000_cellcounter.xml");
 		String filePath = file.getAbsolutePath();
 		int counter = 0;
+		if (!file.getParentFile().exists()) {
+			file.getParentFile().mkdir();
+		}
 		while (new File(filePath).exists() && counter < 900) {
 			counter++;
-			file = new File(img.getOriginalFileInfo().directory, filename.substring(0, filename.lastIndexOf(".")) + "_"
-					+ String.format("%03d", counter) + "_cellcounter.xml");
+			file = new File(fileInfo().directory,
+					nameWithoutPrefix + "_" + String.format("%03d", counter) + "_cellcounter.xml");
 			filePath = file.getAbsolutePath();
 		}
 		WriteXML wxml = new WriteXML(filePath);
 		wxml.writeXML(img.getTitle(), typeVector, typeVector.indexOf(currentMarkerVector));
+	}
+
+	private FileInfo fileInfo() {
+		FileInfo originalFileInfo = img.getOriginalFileInfo();
+		if (originalFileInfo == null) {
+			return img.getFileInfo();
+		}
+		return originalFileInfo;
 	}
 
 	public static final int SAVE = FileDialog.SAVE, OPEN = FileDialog.LOAD;
@@ -848,10 +861,13 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		int FILE = 1;
 		fd = new FileDialog(parent, dialogMessage, dialogType);
 		switch (dialogType) {
+		case (OPEN):
+			fd.setDirectory(fileInfo().directory);
+			break;
 		case (SAVE):
-			String filename = img.getOriginalFileInfo().fileName;
-			fd.setDirectory(img.getOriginalFileInfo().directory);
-			fd.setFile(filename.substring(0, filename.lastIndexOf(".")) + "_cellcounter.xml");
+			String filenameSave = fileInfo().fileName;
+			fd.setDirectory(fileInfo().directory);
+			fd.setFile(filenameSave.substring(0, filenameSave.lastIndexOf(".")) + "_cellcounter.xml");
 			break;
 		}
 		fd.setVisible(true);
@@ -1304,6 +1320,7 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		justOutOfRange = RoiEnlarger.enlarge(new ShapeRoi(larger), 15d);
 		RoiManager.getInstance().reset();
 		RoiManager.getInstance().addRoi(larger);
+		
 		checkInRegion(larger, justOutOfRange);
 		newGermBandActive = false;
 	}
