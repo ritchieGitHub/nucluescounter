@@ -41,7 +41,7 @@ public class NucleusCounter implements PlugIn {
 		gd.addNumericField("Z-upper-limit 0=default", 0, 0);
 		gd.addNumericField("Z-lower-limit 0=default", 0, 0);
 		gd.addCheckbox("keep referencial area", false);
-		gd.addCheckbox("detect germ band", true);
+		gd.addCheckbox("detect germ band", false);
 		gd.showDialog();
 		if (gd.wasCanceled())
 			return;
@@ -69,10 +69,11 @@ public class NucleusCounter implements PlugIn {
 		imp1.setC(1);
 		int nSlices = imp1.getStackSize();
 		int maxCellSize = (imp1.getWidth() * imp1.getHeight()) / 3150;
-		for (int index = 1; index <= nSlices; index += 2) {
+		int channelCount = imp1.getNChannels();
+		for (int index = 1; index <= nSlices; index += channelCount) {
 			imp1 = WindowManager.getCurrentImage();
 			imp1.setSlice(index);
-			imp1.setZ((index + 1) / 2);
+			imp1.setZ((index + 1) / channelCount);
 
 			int currentZ = imp1.getZ();
 			int currentSlice = imp1.getCurrentSlice();

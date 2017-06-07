@@ -964,17 +964,23 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		((CellCntrMarkerVector) instance.typeVector.get(0)).addAll(allPoints);
 		instance.invisiblePoints.clear();
 
-		((CellCntrMarkerVector) instance.typeVector.get(0)).removeAll(instance.forcedDelete);
 		instance.invisiblePoints.addAll(instance.forcedDelete);
+		((CellCntrMarkerVector) instance.typeVector.get(0)).removeAll(instance.forcedDelete);
+		((CellCntrMarkerVector) instance.typeVector.get(0)).removeAll(instance.forcedOutRange);
 		((CellCntrMarkerVector) instance.typeVector.get(0)).removeAll(instance.forcedDuplicate);
+		((CellCntrMarkerVector) instance.typeVector.get(1)).addAll(instance.forcedOutRange);
 		((CellCntrMarkerVector) instance.typeVector.get(2)).addAll(instance.forcedDuplicate);
 
 		for (CellCntrMarker cMarker : ((CellCntrMarkerVector) instance.typeVector.get(0))) {
-			if (!larger.contains(cMarker.getX(), cMarker.getY()) && !instance.forcedInRange.contains(cMarker)) {
+			if (!larger.contains(cMarker.getX(), cMarker.getY()) && //
+					!instance.forcedInRange.contains(cMarker)) {
 				if (justOutOfRange.contains(cMarker.getX(), cMarker.getY())) {
 					((CellCntrMarkerVector) instance.typeVector.get(1)).add(cMarker);
+					instance.forcedOutRange.remove(cMarker);
 				}
 				instance.invisiblePoints.add(cMarker);
+			} else {
+				instance.forcedInRange.remove(cMarker);
 			}
 		}
 		((CellCntrMarkerVector) instance.typeVector.get(0)).removeAll(instance.invisiblePoints);
@@ -992,15 +998,11 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 				}
 			}
 		}
-		if (1 == 2) {// debug rois
-			for (Roi roi2 : rois) {
-				RoiManager.getInstance().addRoi(roi2);
-			}
-		}
 		moveToType3.removeAll(instance.forcedInRange);
 		((CellCntrMarkerVector) instance.typeVector.get(0)).removeAll(moveToType3);
 		((CellCntrMarkerVector) instance.typeVector.get(0)).addAll(instance.forcedInRange);
 		((CellCntrMarkerVector) instance.typeVector.get(2)).addAll(moveToType3);
+
 		updateGui();
 		instance.autoExportMarkers();
 	}
@@ -1072,6 +1074,7 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 	}
 
 	private List<CellCntrMarker> forcedInRange = new ArrayList<>();
+	private List<CellCntrMarker> forcedOutRange = new ArrayList<>();
 	private List<CellCntrMarker> forcedDuplicate = new ArrayList<>();
 	private List<CellCntrMarker> forcedDelete = new ArrayList<>();
 
@@ -1087,19 +1090,33 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 			return;
 		}
 		if (distOutOfRange < distDupl && distOutOfRange < distCount) {
+			removeFromForced(nearestOutOfRange);
 			forcedInRange.add(nearestOutOfRange);
-			((CellCntrMarkerVector) typeVector.get(1)).remove(nearestOutOfRange);
-			((CellCntrMarkerVector) typeVector.get(0)).add(nearestOutOfRange);
+			addToTypeVector(0, nearestOutOfRange);
 		} else if (distCount < distDupl && distCount < distOutOfRange) {
+			removeFromForced(nearestCounted);
 			forcedDuplicate.add(nearestCounted);
-			forcedInRange.remove(nearestCounted);
-			((CellCntrMarkerVector) typeVector.get(0)).remove(nearestCounted);
-			((CellCntrMarkerVector) typeVector.get(2)).add(nearestCounted);
-		} else {
-			forcedDuplicate.remove(nearestDuplicate);
-			forcedInRange.remove(nearestDuplicate);
+			addToTypeVector(2, nearestCounted);
+		} else if (nearestDuplicate != null) {
+			removeFromForced(nearestDuplicate);
 			forcedDelete.add(nearestDuplicate);
-			((CellCntrMarkerVector) typeVector.get(2)).remove(nearestDuplicate);
+			addToTypeVector(-1, nearestDuplicate);
+		}
+		instance.autoExportMarkers();
+	}
+
+	private void addToTypeVector(int index, CellCntrMarker marker) {
+		if (index < 0) {
+			((CellCntrMarkerVector) typeVector.get(0)).remove(marker);
+			((CellCntrMarkerVector) typeVector.get(1)).remove(marker);
+			((CellCntrMarkerVector) typeVector.get(2)).remove(marker);
+		} else {
+			if (marker == null) {
+				"".toString();
+			}
+			((CellCntrMarkerVector) typeVector.get(index)).addMarker(marker);
+			((CellCntrMarkerVector) typeVector.get((index + 1) % 3)).remove(marker);
+			((CellCntrMarkerVector) typeVector.get((index + 2) % 3)).remove(marker);
 		}
 	}
 
@@ -1253,38 +1270,30 @@ public class CellCounter extends JFrame implements ActionListener, ItemListener 
 		double distDupl = distanceBetweenPointAndMarker(nearestDuplicate, x, y);
 		double distOutOfRange = distanceBetweenPointAndMarker(nearestOutOfRange, x, y);
 		if (Math.min(Math.min(distCount, distDupl), distOutOfRange) > 10d) {
-			IJ.showStatus("no near cell " + distCount + " and " + distDupl + " and " + distOutOfRange);
+			IJ.showStatus("no near cell " + distCount + " and " + distDupl);
 			return;
 		}
 		if (distOutOfRange < distDupl && distOutOfRange < distCount) {
-			forcedDuplicate.remove(nearestOutOfRange);
-			forcedInRange.remove(nearestOutOfRange);
-			forcedDelete.remove(nearestOutOfRange);
-			// in case of no roi nearestOutOfRange -> counted
-			((CellCntrMarkerVector) typeVector.get(0)).add(nearestOutOfRange);
-			((CellCntrMarkerVector) typeVector.get(1)).remove(nearestOutOfRange);
-			((CellCntrMarkerVector) typeVector.get(2)).remove(nearestOutOfRange);
+			removeFromForced(nearestOutOfRange);
+			forcedDelete.add(nearestOutOfRange);
+			addToTypeVector(-1, nearestOutOfRange);
 		} else if (distCount < distDupl && distCount < distOutOfRange) {
-			forcedDuplicate.remove(nearestCounted);
-			forcedInRange.remove(nearestCounted);
-			forcedDelete.remove(nearestCounted);
-			// in case of no roi nearestCounted -> counted
-			((CellCntrMarkerVector) typeVector.get(0)).remove(nearestCounted);
-			((CellCntrMarkerVector) typeVector.get(1)).remove(nearestCounted);
-			((CellCntrMarkerVector) typeVector.get(2)).add(nearestCounted);
-		} else {
-			if (forcedDuplicate.remove(nearestDuplicate)) {
-				forcedInRange.remove(nearestDuplicate);
-			} else {
-				forcedInRange.add(nearestDuplicate);
-			}
-			forcedDelete.remove(nearestDuplicate);
-			// in case of no roi nearestDuplicate -> gone
-			((CellCntrMarkerVector) typeVector.get(0)).remove(nearestDuplicate);
-			((CellCntrMarkerVector) typeVector.get(1)).add(nearestDuplicate);
-			((CellCntrMarkerVector) typeVector.get(2)).remove(nearestDuplicate);
+			removeFromForced(nearestCounted);
+			forcedOutRange.add(nearestCounted);
+			addToTypeVector(1, nearestCounted);
+		} else if (nearestDuplicate != null) {
+			removeFromForced(nearestDuplicate);
+			forcedInRange.add(nearestDuplicate);
+			addToTypeVector(0, nearestDuplicate);
 		}
-		checkInRegion(larger, justOutOfRange);
+		instance.autoExportMarkers();
+	}
+
+	private void removeFromForced(CellCntrMarker marker) {
+		forcedDuplicate.remove(marker);
+		forcedDelete.remove(marker);
+		forcedOutRange.remove(marker);
+		forcedInRange.remove(marker);
 	}
 
 	public void defineNewGermBand(int x, int y) {

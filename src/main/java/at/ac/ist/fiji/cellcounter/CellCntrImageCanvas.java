@@ -138,6 +138,9 @@ public class CellCntrImageCanvas extends ImageCanvas {
 	}
 
 	public void mouseDragged(MouseEvent e) {
+		int x = super.offScreenX(e.getX());
+		int y = super.offScreenY(e.getY());
+		cc.clickWithShift(x, y);
 		super.mouseDragged(e);
 	}
 
